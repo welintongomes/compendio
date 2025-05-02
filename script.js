@@ -1178,7 +1178,16 @@ function displayResults(searchTime) {
         // Criar contêiner para botões em dispositivos móveis
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'button-container';
-        
+
+        // Adiciona botão de adicionar parágrafo
+        const addParagraphButton = document.createElement('button');
+        addParagraphButton.className = 'add-paragraph-button';
+        addParagraphButton.textContent = 'Novo';
+        addParagraphButton.onclick = function () {
+            addNewParagraph(result.file);
+        };
+        buttonContainer.appendChild(addParagraphButton);
+
         // Adiciona botão de editar
         const editButton = document.createElement('button');
         editButton.className = 'edit-button';
@@ -1197,7 +1206,19 @@ function displayResults(searchTime) {
         };
         buttonContainer.appendChild(exportButton);
 
-        buttonContainer.appendChild(exportButton);
+        // Adiciona botão de excluir parágrafo
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'delete-button';
+        deleteButton.textContent = 'Excluir';
+        deleteButton.onclick = function (e) {
+            // Prevenir propagação do evento
+            e.preventDefault();
+            e.stopPropagation();
+
+            deleteParagraph(`result-${index}`, result);
+        };
+        buttonContainer.appendChild(deleteButton);
+
         // Adiciona botão de copiar
         const copyButton = document.createElement('button');
         copyButton.className = 'copy-button';
@@ -1205,9 +1226,6 @@ function displayResults(searchTime) {
         copyButton.onclick = function () {
             copyToClipboard(`result-${index}`);
         };
-
-
-
 
         // Adiciona botão para mostrar contexto completo (quando aplicável)
         if (result.hasOriginalContext) {
@@ -1232,7 +1250,18 @@ function displayResults(searchTime) {
 }
 
 // Função para mostrar estatísticas avançadas
-function updateStats(searchTime) {
+function updateStats(searchTime = null) {
+    if (searchTime === null) {
+        // Se não houver tempo de busca, apenas atualiza a contagem de resultados
+        const currentStats = statsEl.innerHTML;
+        if (currentStats.includes('resultados encontrados')) {
+            // Atualiza apenas a parte da contagem de resultados
+            statsEl.innerHTML = currentStats.replace(/\d+ resultados encontrados/, `${appState.searchResults.length} resultados encontrados`);
+        }
+        return;
+    }
+
+    // A partir daqui, temos um tempo de busca para mostrar estatísticas completas
     if (appState.searchResults.length === 0) {
         statsEl.innerHTML = `Busca concluída em ${searchTime} segundos. Nenhum resultado encontrado.`;
         return;
@@ -1550,38 +1579,38 @@ function splitIntoParagraphs(content) {
 function editResultContent(resultId, result) {
     const resultItem = document.getElementById(resultId);
     const contentEl = resultItem.querySelector('.content');
-    
+
     // Guarda o conteúdo original para uso posterior
     const originalContent = contentEl.innerHTML;
     const originalParagraph = result.paragraph;
-    
+
     // Substitui o conteúdo por um textarea editável
     const textArea = document.createElement('textarea');
     textArea.value = result.paragraph;
     textArea.className = 'edit-textarea';
     textArea.style.width = '100%';
     textArea.style.minHeight = '200px';
-    
+
     // Substitui o conteúdo pelo textarea
     contentEl.innerHTML = '';
     contentEl.appendChild(textArea);
-    
+
     // Cria botões de salvar e cancelar
     const actionButtons = document.createElement('div');
     actionButtons.className = 'edit-actions';
-    
+
     const saveButton = document.createElement('button');
     saveButton.textContent = 'Salvar';
-    saveButton.onclick = function() {
+    saveButton.onclick = function () {
         // Obtém o arquivo completo do banco de dados
         getFileFromDatabase(result.file)
             .then(fileData => {
                 // Obtém o novo conteúdo do textarea
                 const newParagraphContent = textArea.value;
-                
+
                 // Atualiza o conteúdo do arquivo completo
                 let newContent = fileData.content.replace(originalParagraph, newParagraphContent);
-                
+
                 // Atualiza também os parágrafos armazenados no objeto do arquivo
                 if (fileData.paragraphs) {
                     const paragraphIndex = fileData.paragraphs.indexOf(originalParagraph);
@@ -1589,10 +1618,10 @@ function editResultContent(resultId, result) {
                         fileData.paragraphs[paragraphIndex] = newParagraphContent;
                     }
                 }
-                
+
                 // Atualiza o conteúdo completo do arquivo
                 fileData.content = newContent;
-                
+
                 // Atualiza no banco de dados
                 return updateFileInDatabase(fileData.id, newContent)
                     .then(() => fileData); // Passa o fileData adiante
@@ -1600,13 +1629,13 @@ function editResultContent(resultId, result) {
             .then((fileData) => {
                 // Atualiza o objeto do resultado em memória
                 result.paragraph = textArea.value;
-                
+
                 // IMPORTANTE: Atualiza também o appState.files para refletir a mudança
                 const fileIndex = appState.files.findIndex(f => f.id === fileData.id);
                 if (fileIndex !== -1) {
                     appState.files[fileIndex] = fileData;
                 }
-                
+
                 // Atualiza a visualização
                 const query = searchInput.value.trim();
                 let highlightedText;
@@ -1620,9 +1649,9 @@ function editResultContent(resultId, result) {
                     console.error('Erro ao destacar texto:', error);
                     highlightedText = textArea.value;
                 }
-                
+
                 contentEl.innerHTML = highlightedText;
-                
+
                 // Atualiza também os resultados da pesquisa para refletir a mudança
                 for (let i = 0; i < appState.searchResults.length; i++) {
                     if (appState.searchResults[i].paragraph === originalParagraph &&
@@ -1630,7 +1659,7 @@ function editResultContent(resultId, result) {
                         appState.searchResults[i].paragraph = textArea.value;
                     }
                 }
-                
+
                 alert('Conteúdo atualizado com sucesso!');
             })
             .catch(error => {
@@ -1639,18 +1668,18 @@ function editResultContent(resultId, result) {
                 alert('Erro ao salvar alterações: ' + error.message);
             });
     };
-    
+
     const cancelButton = document.createElement('button');
     cancelButton.textContent = 'Cancelar';
-    cancelButton.onclick = function() {
+    cancelButton.onclick = function () {
         // Restaura o conteúdo original
         contentEl.innerHTML = originalContent;
     };
-    
+
     actionButtons.appendChild(saveButton);
     actionButtons.appendChild(cancelButton);
     contentEl.appendChild(actionButtons);
-    
+
     // Foca no textarea
     textArea.focus();
 }
@@ -1708,7 +1737,7 @@ function updateFileInDatabase(fileId, newContent) {
 
             // Atualizamos o conteúdo do arquivo
             fileData.content = newContent;
-            
+
             // Atualizamos também os parágrafos
             fileData.paragraphs = splitIntoParagraphs(newContent);
 
@@ -1776,4 +1805,299 @@ function getFileFromDatabase(fileName) {
             reject(event.target.error);
         };
     });
+}
+
+function addNewParagraph(fileName, afterParagraphIndex = null) {
+    // Obter o arquivo do banco de dados
+    getFileFromDatabase(fileName)
+        .then(fileData => {
+            // Criar um modal ou popup para inserir o novo parágrafo
+            const modal = document.createElement('div');
+            modal.className = 'edit-modal';
+            
+            const modalContent = document.createElement('div');
+            modalContent.className = 'edit-modal-content';
+            
+            const modalHeader = document.createElement('div');
+            modalHeader.className = 'edit-modal-header';
+            modalHeader.innerHTML = `<h3>Adicionar parágrafo em "${fileName}"</h3>`;
+            
+            const closeButton = document.createElement('span');
+            closeButton.className = 'close-button';
+            closeButton.innerHTML = '&times;';
+            closeButton.onclick = function() {
+                document.body.removeChild(modal);
+            };
+            modalHeader.appendChild(closeButton);
+            
+            // Se não houver parágrafos definidos, dividir o conteúdo
+            if (!fileData.paragraphs) {
+                fileData.paragraphs = splitIntoParagraphs(fileData.content);
+            }
+            
+            // Adicionar um seletor de parágrafo se afterParagraphIndex não for fornecido
+            if (afterParagraphIndex === null) {
+                const paragraphSelector = document.createElement('div');
+                paragraphSelector.className = 'paragraph-selector';
+                
+                const selectLabel = document.createElement('label');
+                selectLabel.textContent = 'Inserir após o parágrafo:';
+                
+                const select = document.createElement('select');
+                select.className = 'paragraph-select';
+                
+                // Opção para adicionar no início
+                const startOption = document.createElement('option');
+                startOption.value = '-1';
+                startOption.textContent = 'Início do documento';
+                select.appendChild(startOption);
+                
+                // Adicionar cada parágrafo como uma opção (limitado a uma prévia)
+                fileData.paragraphs.forEach((paragraph, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    
+                    // Limitar prévia do parágrafo a 50 caracteres
+                    const preview = paragraph.length > 50 ? paragraph.substring(0, 50) + '...' : paragraph;
+                    option.textContent = `Parágrafo ${index + 1}: ${preview}`;
+                    
+                    select.appendChild(option);
+                });
+                
+                // Opção para adicionar no final (padrão)
+                const endOption = document.createElement('option');
+                endOption.value = fileData.paragraphs.length;
+                endOption.textContent = 'Final do documento';
+                endOption.selected = true;
+                select.appendChild(endOption);
+                
+                paragraphSelector.appendChild(selectLabel);
+                paragraphSelector.appendChild(select);
+                
+                modalContent.appendChild(modalHeader);
+                modalContent.appendChild(paragraphSelector);
+            } else {
+                modalContent.appendChild(modalHeader);
+            }
+            
+            const textArea = document.createElement('textarea');
+            textArea.className = 'new-paragraph-textarea';
+            textArea.placeholder = 'Digite seu novo parágrafo aqui...';
+            textArea.style.width = '100%';
+            textArea.style.minHeight = '200px';
+            textArea.style.marginTop = '15px';
+            textArea.style.marginBottom = '15px';
+            
+            const actionButtons = document.createElement('div');
+            actionButtons.className = 'edit-actions';
+            
+            const saveButton = document.createElement('button');
+            saveButton.textContent = 'Salvar';
+            saveButton.onclick = function() {
+                const newParagraphText = textArea.value.trim();
+                
+                if (!newParagraphText) {
+                    alert('Por favor, digite algum conteúdo para o novo parágrafo.');
+                    return;
+                }
+                
+                // Determinar o índice após o qual inserir o novo parágrafo
+                let insertAfterIndex;
+                if (afterParagraphIndex !== null) {
+                    insertAfterIndex = afterParagraphIndex;
+                } else {
+                    const select = document.querySelector('.paragraph-select');
+                    insertAfterIndex = parseInt(select.value);
+                }
+                
+                // Inserir o novo parágrafo na posição apropriada no array de parágrafos
+                if (insertAfterIndex === -1) {
+                    // Inserir no início
+                    fileData.paragraphs.unshift(newParagraphText);
+                } else if (insertAfterIndex >= fileData.paragraphs.length) {
+                    // Inserir no final
+                    fileData.paragraphs.push(newParagraphText);
+                } else {
+                    // Inserir após o parágrafo especificado
+                    fileData.paragraphs.splice(insertAfterIndex + 1, 0, newParagraphText);
+                }
+                
+                // Reconstruir o conteúdo do arquivo a partir dos parágrafos
+                const newContent = fileData.paragraphs.join('\n\n');
+                
+                // Atualizar no banco de dados
+                updateFileInDatabase(fileData.id, newContent)
+                    .then((updatedFile) => {
+                        // Atualizar o arquivo no appState
+                        const fileIndex = appState.files.findIndex(f => f.id === fileData.id);
+                        if (fileIndex !== -1) {
+                            appState.files[fileIndex] = updatedFile;
+                        }
+                        
+                        // Fechar o modal
+                        document.body.removeChild(modal);
+                        
+                        // Mostrar mensagem de sucesso
+                        const notification = document.createElement('div');
+                        notification.className = 'notification success';
+                        
+                        if (insertAfterIndex === -1) {
+                            notification.textContent = `Parágrafo adicionado no início do arquivo "${fileName}".`;
+                        } else if (insertAfterIndex >= fileData.paragraphs.length - 1) {
+                            notification.textContent = `Parágrafo adicionado no final do arquivo "${fileName}".`;
+                        } else {
+                            notification.textContent = `Parágrafo adicionado após o parágrafo ${insertAfterIndex + 1} no arquivo "${fileName}".`;
+                        }
+                        
+                        document.body.appendChild(notification);
+                        
+                        // Remover a notificação após alguns segundos
+                        setTimeout(() => {
+                            document.body.removeChild(notification);
+                        }, 3000);
+                        
+                        // Se houver uma pesquisa ativa, sugerir atualizar os resultados
+                        if (appState.searchResults.length > 0) {
+                            const updateButton = document.createElement('button');
+                            updateButton.className = 'update-search-button';
+                            updateButton.textContent = 'Atualizar resultados da pesquisa';
+                            updateButton.onclick = function() {
+                                performSearch();
+                                document.body.removeChild(updateButton);
+                            };
+                            notification.appendChild(document.createElement('br'));
+                            notification.appendChild(updateButton);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro ao adicionar parágrafo:', error);
+                        alert('Erro ao adicionar parágrafo: ' + error.message);
+                    });
+            };
+            
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = 'Cancelar';
+            cancelButton.onclick = function() {
+                document.body.removeChild(modal);
+            };
+            
+            actionButtons.appendChild(saveButton);
+            actionButtons.appendChild(cancelButton);
+            
+            modalContent.appendChild(textArea);
+            modalContent.appendChild(actionButtons);
+            modal.appendChild(modalContent);
+            
+            // Adicionar modal ao corpo do documento
+            document.body.appendChild(modal);
+            
+            // Focar no textarea
+            textArea.focus();
+        })
+        .catch(error => {
+            console.error('Erro ao carregar arquivo para adicionar parágrafo:', error);
+            alert('Erro ao carregar arquivo: ' + error.message);
+        });
+}
+function deleteParagraph(resultId, result) {
+    // Confirmar antes de excluir
+    if (!confirm(`Tem certeza que deseja excluir este parágrafo do arquivo "${result.file}"?`)) {
+        return;
+    }
+
+    // Obter o arquivo do banco de dados
+    getFileFromDatabase(result.file)
+        .then(fileData => {
+            // Localizar e remover o parágrafo do conteúdo
+            const paragraphToDelete = result.paragraph;
+
+            // Verificar se o parágrafo existe no conteúdo
+            if (!fileData.content.includes(paragraphToDelete)) {
+                alert('Não foi possível localizar o parágrafo exato no arquivo. A operação foi cancelada.');
+                return;
+            }
+
+            // Criar novo conteúdo sem o parágrafo
+            let newContent = fileData.content;
+
+            // Tratamento especial para remover o parágrafo e manter a formatação
+            // Consideramos vários casos: parágrafo no início, meio ou fim do conteúdo
+            if (newContent.startsWith(paragraphToDelete)) {
+                // Parágrafo está no início
+                newContent = newContent.substring(paragraphToDelete.length).trimStart();
+                // Se há quebras de linha extras no início após remoção, removê-las
+                while (newContent.startsWith('\n')) {
+                    newContent = newContent.substring(1);
+                }
+            } else if (newContent.endsWith(paragraphToDelete)) {
+                // Parágrafo está no final
+                newContent = newContent.substring(0, newContent.length - paragraphToDelete.length).trimEnd();
+            } else {
+                // Parágrafo está no meio - temos que ser cuidadosos com a formatação
+                const beforeText = newContent.substring(0, newContent.indexOf(paragraphToDelete));
+                const afterText = newContent.substring(newContent.indexOf(paragraphToDelete) + paragraphToDelete.length);
+
+                // Conectar as partes mantendo apenas uma quebra de linha dupla entre elas
+                newContent = beforeText.trimEnd() + '\n\n' + afterText.trimStart();
+            }
+
+            // Atualizar os parágrafos
+            if (fileData.paragraphs) {
+                const paragraphIndex = fileData.paragraphs.indexOf(paragraphToDelete);
+                if (paragraphIndex !== -1) {
+                    fileData.paragraphs.splice(paragraphIndex, 1);
+                }
+            } else {
+                fileData.paragraphs = splitIntoParagraphs(newContent);
+            }
+
+            // Atualizar o conteúdo do arquivo
+            return updateFileInDatabase(fileData.id, newContent)
+                .then(updatedFile => {
+                    // Atualizar o arquivo no appState
+                    const fileIndex = appState.files.findIndex(f => f.id === fileData.id);
+                    if (fileIndex !== -1) {
+                        appState.files[fileIndex] = updatedFile;
+                    }
+
+                    // Remover o resultado da lista de resultados
+                    const resultIndex = appState.searchResults.findIndex(r =>
+                        r.file === result.file && r.paragraph === paragraphToDelete);
+
+                    if (resultIndex !== -1) {
+                        appState.searchResults.splice(resultIndex, 1);
+                    }
+
+                    // Remover o elemento da interface
+                    const resultElement = document.getElementById(resultId);
+                    if (resultElement) {
+                        resultElement.classList.add('fade-out');
+
+                        // Após a animação terminar, remover o elemento
+                        setTimeout(() => {
+                            if (resultElement.parentNode) {
+                                resultElement.parentNode.removeChild(resultElement);
+                            }
+
+                            // Atualizar estatísticas
+                            updateStats();
+                        }, 300);
+                    }
+
+                    // Mostrar mensagem de sucesso
+                    const notification = document.createElement('div');
+                    notification.className = 'notification success';
+                    notification.textContent = `Parágrafo excluído com sucesso do arquivo "${result.file}".`;
+                    document.body.appendChild(notification);
+
+                    // Remover a notificação após alguns segundos
+                    setTimeout(() => {
+                        document.body.removeChild(notification);
+                    }, 3000);
+                });
+        })
+        .catch(error => {
+            console.error('Erro ao excluir parágrafo:', error);
+            alert('Erro ao excluir parágrafo: ' + error.message);
+        });
 }
