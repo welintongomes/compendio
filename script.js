@@ -1550,47 +1550,63 @@ function splitIntoParagraphs(content) {
 function editResultContent(resultId, result) {
     const resultItem = document.getElementById(resultId);
     const contentEl = resultItem.querySelector('.content');
-
+    
     // Guarda o conteúdo original para uso posterior
     const originalContent = contentEl.innerHTML;
-
+    const originalParagraph = result.paragraph;
+    
     // Substitui o conteúdo por um textarea editável
     const textArea = document.createElement('textarea');
     textArea.value = result.paragraph;
     textArea.className = 'edit-textarea';
     textArea.style.width = '100%';
     textArea.style.minHeight = '200px';
-
+    
     // Substitui o conteúdo pelo textarea
     contentEl.innerHTML = '';
     contentEl.appendChild(textArea);
-
+    
     // Cria botões de salvar e cancelar
     const actionButtons = document.createElement('div');
     actionButtons.className = 'edit-actions';
-
+    
     const saveButton = document.createElement('button');
     saveButton.textContent = 'Salvar';
-    saveButton.onclick = function () {
+    saveButton.onclick = function() {
         // Obtém o arquivo completo do banco de dados
         getFileFromDatabase(result.file)
             .then(fileData => {
-                // Aqui precisamos atualizar o conteúdo específico
-                // Isso depende de como seu arquivo está estruturado
-                // Assumindo que o arquivo tem um conteúdo completo:
-                let newContent = fileData.content;
-
-                // Substitui o trecho específico - isso é uma simplificação
-                // Na prática, você precisa localizar exatamente onde o parágrafo está no arquivo
-                newContent = newContent.replace(result.paragraph, textArea.value);
-
+                // Obtém o novo conteúdo do textarea
+                const newParagraphContent = textArea.value;
+                
+                // Atualiza o conteúdo do arquivo completo
+                let newContent = fileData.content.replace(originalParagraph, newParagraphContent);
+                
+                // Atualiza também os parágrafos armazenados no objeto do arquivo
+                if (fileData.paragraphs) {
+                    const paragraphIndex = fileData.paragraphs.indexOf(originalParagraph);
+                    if (paragraphIndex !== -1) {
+                        fileData.paragraphs[paragraphIndex] = newParagraphContent;
+                    }
+                }
+                
+                // Atualiza o conteúdo completo do arquivo
+                fileData.content = newContent;
+                
                 // Atualiza no banco de dados
-                return updateFileInDatabase(fileData.id, newContent);
+                return updateFileInDatabase(fileData.id, newContent)
+                    .then(() => fileData); // Passa o fileData adiante
             })
-            .then(() => {
+            .then((fileData) => {
                 // Atualiza o objeto do resultado em memória
                 result.paragraph = textArea.value;
-
+                
+                // IMPORTANTE: Atualiza também o appState.files para refletir a mudança
+                const fileIndex = appState.files.findIndex(f => f.id === fileData.id);
+                if (fileIndex !== -1) {
+                    appState.files[fileIndex] = fileData;
+                }
+                
                 // Atualiza a visualização
                 const query = searchInput.value.trim();
                 let highlightedText;
@@ -1599,13 +1615,22 @@ function editResultContent(resultId, result) {
                         caseSensitive: caseSensitiveEl.checked,
                         useRegex: useRegexEl.checked
                     };
-                    highlightedText = highlightSearchTerms(result.paragraph, query, options);
+                    highlightedText = highlightSearchTerms(textArea.value, query, options);
                 } catch (error) {
                     console.error('Erro ao destacar texto:', error);
-                    highlightedText = result.paragraph;
+                    highlightedText = textArea.value;
                 }
-
+                
                 contentEl.innerHTML = highlightedText;
+                
+                // Atualiza também os resultados da pesquisa para refletir a mudança
+                for (let i = 0; i < appState.searchResults.length; i++) {
+                    if (appState.searchResults[i].paragraph === originalParagraph &&
+                        appState.searchResults[i].file === result.file) {
+                        appState.searchResults[i].paragraph = textArea.value;
+                    }
+                }
+                
                 alert('Conteúdo atualizado com sucesso!');
             })
             .catch(error => {
@@ -1614,18 +1639,18 @@ function editResultContent(resultId, result) {
                 alert('Erro ao salvar alterações: ' + error.message);
             });
     };
-
+    
     const cancelButton = document.createElement('button');
     cancelButton.textContent = 'Cancelar';
-    cancelButton.onclick = function () {
+    cancelButton.onclick = function() {
         // Restaura o conteúdo original
         contentEl.innerHTML = originalContent;
     };
-
+    
     actionButtons.appendChild(saveButton);
     actionButtons.appendChild(cancelButton);
     contentEl.appendChild(actionButtons);
-
+    
     // Foca no textarea
     textArea.focus();
 }
@@ -1683,6 +1708,9 @@ function updateFileInDatabase(fileId, newContent) {
 
             // Atualizamos o conteúdo do arquivo
             fileData.content = newContent;
+            
+            // Atualizamos também os parágrafos
+            fileData.paragraphs = splitIntoParagraphs(newContent);
 
             // Salvamos de volta no banco de dados
             const putRequest = store.put(fileData);
