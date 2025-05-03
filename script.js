@@ -1092,6 +1092,18 @@ function displayResults(searchTime) {
     statsEl.innerHTML = `Busca concluída em ${searchTime} segundos. ${appState.searchResults.length} resultados encontrados.`;
     updateStats(searchTime);
 
+    // Variável global para controlar leitura em voz alta
+    if (!window.speechSynthesis) {
+        console.warn('Síntese de voz não suportada neste navegador');
+    }
+    
+    // Função para parar qualquer leitura em andamento
+    const stopSpeaking = () => {
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+    };
+
     // Cria elementos para cada resultado
     appState.searchResults.forEach((result, index) => {
         const resultItem = document.createElement('div');
@@ -1219,6 +1231,64 @@ function displayResults(searchTime) {
         };
         buttonContainer.appendChild(deleteButton);
 
+        // Adiciona botão de leitura em voz alta
+        const readButton = document.createElement('button');
+        readButton.className = 'read-button';
+        readButton.textContent = 'Ler';
+        readButton.dataset.speaking = 'false';
+        
+        readButton.onclick = function () {
+            // Verificar se a API é suportada
+            if (!window.speechSynthesis) {
+                alert('Desculpe, seu navegador não suporta leitura em voz alta.');
+                return;
+            }
+            
+            // Obtém o texto puro (sem HTML)
+            const textToRead = result.paragraph;
+            
+            // Parar qualquer leitura em andamento
+            stopSpeaking();
+            
+            // Se não estiver falando, iniciar leitura
+            if (readButton.dataset.speaking === 'false') {
+                // Criar uma nova instância de SpeechSynthesisUtterance
+                const utterance = new SpeechSynthesisUtterance(textToRead);
+                
+                // Definir idioma para português (Brasil)
+                utterance.lang = 'pt-BR';
+                
+                // Evento quando a leitura terminar
+                utterance.onend = function() {
+                    readButton.textContent = 'Ler';
+                    readButton.dataset.speaking = 'false';
+                    readButton.classList.remove('speaking');
+                };
+                
+                // Evento em caso de erro
+                utterance.onerror = function() {
+                    readButton.textContent = 'Ler';
+                    readButton.dataset.speaking = 'false';
+                    readButton.classList.remove('speaking');
+                };
+                
+                // Iniciar leitura
+                window.speechSynthesis.speak(utterance);
+                
+                // Atualizar estado do botão
+                readButton.textContent = 'Parar';
+                readButton.dataset.speaking = 'true';
+                readButton.classList.add('speaking');
+            } else {
+                // Parar leitura
+                readButton.textContent = 'Ler';
+                readButton.dataset.speaking = 'false';
+                readButton.classList.remove('speaking');
+            }
+        };
+        
+        buttonContainer.appendChild(readButton);
+
         // Adiciona botão de copiar
         const copyButton = document.createElement('button');
         copyButton.className = 'copy-button';
@@ -1246,8 +1316,15 @@ function displayResults(searchTime) {
         searchResultsEl.appendChild(resultItem);
     });
 
+    // Parar qualquer leitura em andamento se o usuário iniciar uma nova busca
+    const searchForm = document.querySelector('#search-form');
+    if (searchForm) {
+        searchForm.addEventListener('submit', stopSpeaking);
+    }
+
     filterResults();
 }
+
 
 // Função para mostrar estatísticas avançadas
 function updateStats(searchTime = null) {
