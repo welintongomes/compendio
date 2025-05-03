@@ -508,16 +508,17 @@ body.hidden {
   display: flex;
   gap: 0.3rem;
   margin-top: 0.5rem;
+  
 }
 
 .button-container button {
-    padding: 0.4rem 0.4rem;
-    font-size: 0.7rem;
-    border-radius: 0.65rem;
-    border: none;
-    cursor: pointer;
-    background-color: #0d6efd;
-    color: white;
+  padding: 0.4rem 0.4rem;
+  font-size: 0.7rem;
+  border-radius: 0.65rem;
+  border: none;
+  cursor: pointer;
+  background-color: #0d6efd;
+  color: white;
 }
 
 .button-container button:hover {
@@ -661,9 +662,13 @@ body.hidden {
       width: 95%;
       padding: 15px;
   }
+  .button-container{
+  justify-content: space-between;
+  }
   
   .button-container button {
       margin-bottom: 5px;
+      justify-content: space-between;
   }
 }
 
