@@ -697,19 +697,7 @@ body.hidden {
   animation: fadeOut 0.3s ease-out forwards;
 }
 
-.read-button {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 5px 10px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 14px;
-  margin: 2px 2px;
-  cursor: pointer;
-  border-radius: 3px;
-}
+
 
 .read-button.speaking {
   background-color: #f44336;
