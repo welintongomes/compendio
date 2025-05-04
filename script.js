@@ -8,7 +8,6 @@ let currentSpeechUtterance = null;
 let isReadingAll = false;
 let currentReadingIndex = -1;
 let readingQueue = [];
-
 // Adicionar botão "Ler Todos" no topo dos resultados
 function addReadAllButton() {
     // Se já existir um botão, remova-o primeiro
@@ -640,9 +639,8 @@ function addTouchSupport() {
         }
     });
 }
+//Inicialização do aplicativo com considerações responsivas
 
-// 8. Inicialização do aplicativo com considerações responsivas
-// Modificar a inicialização do aplicativo
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Inicializa o banco de dados
@@ -651,7 +649,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Carrega os arquivos salvos
         const savedFiles = await loadFilesFromDatabase();
         if (savedFiles && savedFiles.length > 0) {
-            appState.files = savedFiles;
+            // Verifica se já existe um arquivo de exemplo na lista carregada
+            const hasDefaultSample = savedFiles.some(file => file.name === "Texto de Exemplo");
+            
+            // Se não existir, mantém o que foi adicionado na inicialização do appState
+            if (hasDefaultSample) {
+                // Se já existir um arquivo de exemplo no banco de dados, usa apenas os arquivos do banco
+                appState.files = savedFiles;
+            } else {
+                // Adiciona os arquivos do banco de dados mantendo o exemplo
+                appState.files = [...appState.files, ...savedFiles];
+            }
+            
             updateFileList();
 
             // Notificar o usuário
@@ -684,7 +693,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initEventListeners();
     addTouchSupport();
 
-    // Verificar se está em um dispositivo móvel e ajustar a UI
+    // Verifica se está em um dispositivo móvel e ajusta a UI
     if (isMobileDevice()) {
         document.body.classList.add('mobile-device');
 
@@ -693,6 +702,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             limitResultsCheckbox.checked = true;
         }
     }
+    
+    // Atualiza a lista de arquivos (para mostrar o arquivo de exemplo)
+    updateFileList();
 });
 
 // Função para limitar o número de resultados em dispositivos móveis
@@ -784,6 +796,21 @@ const appState = {
     searchResults: [],
     isSearching: false
 };
+
+if (!appState.defaultSample) {
+    appState.defaultSample = {
+        name: "Texto de Exemplo",
+        date: new Date().toISOString(),
+        id: "default-sample",
+        paragraphs: [
+            "Este é um texto de exemplo para testar a funcionalidade de busca. Você pode buscar por palavras como 'exemplo', 'teste', 'funcionalidade' ou 'busca'.",
+            "A ferramenta de busca possui diversas opções como busca sensível a maiúsculas e minúsculas, busca de palavras inteiras, e até mesmo expressões regulares.",
+            "Experimente usar diferentes termos de busca para ver como os resultados são destacados. Você também pode testar recursos como a leitura em voz alta e edição de texto.",
+            "Quando você carregar seus próprios arquivos, este texto de exemplo não será mais exibido nos resultados de busca.",
+            "Boas buscas!"
+        ]
+    };
+}
 
 // Elementos DOM
 const fileInput = document.getElementById('fileInput');
@@ -1170,11 +1197,8 @@ function performSearch() {
         return;
     }
 
-    if (appState.files.length === 0) {
-        searchResultsEl.innerHTML = '<div class="no-results">Nenhum arquivo carregado para buscar</div>';
-        statsEl.innerHTML = '';
-        return;
-    }
+    // Remover a verificação que impede busca quando não há arquivos
+    // e deixar o texto de exemplo ser usado
 
     // Mostra loading
     searchResultsEl.innerHTML = '<div class="loading">Buscando...</div>';
@@ -1200,11 +1224,12 @@ function performSearch() {
 }
 
 // Função de busca
+// Modificar a função de busca para incluir o texto de exemplo quando não houver arquivos
 function searchInFiles(query, options) {
     const results = [];
     let searchRegex;
 
-    // Adicione opção para ignorar acentos (assume que o checkbox existe)
+    // Adicione opção para ignorar acentos
     const ignoreAccents = document.getElementById('ignoreAccents') &&
         document.getElementById('ignoreAccents').checked;
 
@@ -1212,8 +1237,8 @@ function searchInFiles(query, options) {
     const normalizedQuery = ignoreAccents ? normalizeText(query) : query;
 
     try {
+        // Criar regex baseado nas opções (código existente)
         if (options.useRegex) {
-            // Usa a query diretamente como regex
             const flags = options.caseSensitive ? 'g' : 'gi';
             searchRegex = new RegExp(normalizedQuery, flags);
         } else {
@@ -1257,8 +1282,11 @@ function searchInFiles(query, options) {
     }
 
     // Busca em cada arquivo e parágrafo
-    appState.files.forEach(file => {
-        file.paragraphs.forEach(paragraph => {
+    const filesToSearch = appState.files.length > 0 ? appState.files : [];
+    
+    // Se não houver arquivos carregados, usa o texto de exemplo
+    if (filesToSearch.length === 0 && appState.defaultSample) {
+        appState.defaultSample.paragraphs.forEach(paragraph => {
             // Se estiver ignorando acentos, normaliza o texto do parágrafo
             const textToSearch = ignoreAccents ? normalizeText(paragraph) : paragraph;
 
@@ -1268,13 +1296,34 @@ function searchInFiles(query, options) {
 
             if (matchCount > 0) {
                 results.push({
-                    file: file.name,
-                    paragraph: paragraph, // Mantém o parágrafo original para exibição
-                    relevance: matchCount
+                    file: appState.defaultSample.name,
+                    paragraph: paragraph,
+                    relevance: matchCount,
+                    isDefaultSample: true
                 });
             }
         });
-    });
+    } else {
+        // Busca normal nos arquivos carregados
+        filesToSearch.forEach(file => {
+            file.paragraphs.forEach(paragraph => {
+                // Se estiver ignorando acentos, normaliza o texto do parágrafo
+                const textToSearch = ignoreAccents ? normalizeText(paragraph) : paragraph;
+
+                // Conta o número de ocorrências para determinar relevância
+                const matches = textToSearch.match(searchRegex);
+                const matchCount = matches ? matches.length : 0;
+
+                if (matchCount > 0) {
+                    results.push({
+                        file: file.name,
+                        paragraph: paragraph,
+                        relevance: matchCount
+                    });
+                }
+            });
+        });
+    }
 
     // Ordena por relevância (número de ocorrências)
     results.sort((a, b) => b.relevance - a.relevance);
@@ -1294,9 +1343,23 @@ function displayResults(searchTime) {
 
     if (appState.searchResults.length === 0) {
         searchResultsEl.innerHTML = '<div class="no-results">Nenhum resultado encontrado</div>';
-        statsEl.innerHTML = `Busca concluída em ${searchTime} segundos. Nenhum resultado encontrado.`;
+        statsEl.innerHTML = `Busca concluída em ${searchTime} segundos. Nenhum resultado encontrados.`;
         updateStats(searchTime);
         return;
+    }
+
+    // Verificar se estamos mostrando resultados do texto de exemplo
+    const isShowingDefaultSample = appState.files.length === 0 && appState.searchResults.some(r => r.isDefaultSample);
+    
+    if (isShowingDefaultSample) {
+        // Adicionar uma nota destacada na parte superior dos resultados
+        const noteEl = document.createElement('div');
+        noteEl.className = 'default-sample-note';
+        noteEl.innerHTML = `
+            <strong>Nota:</strong> Como não há arquivos carregados, estamos mostrando resultados de um texto de exemplo.
+            <a href="#" onclick="document.getElementById('fileInput').click(); return false;">Clique aqui para carregar seus arquivos</a>.
+        `;
+        searchResultsEl.appendChild(noteEl);
     }
 
     // Mostra estatísticas
