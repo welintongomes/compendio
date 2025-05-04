@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Buscador de Texto em Arquivos</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
     <link rel="shortcut icon" href="icon-512x512.png" type="image/png">
     
 </head>
@@ -85,7 +86,15 @@
             </div>
         </div>
     </div>
-    
+    <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log('Service worker registered'))
+          .catch(err => console.log('Service worker error:', err));
+      });
+    }
+  </script>
     <script src="script.js"></script>
 </body>
 </html>
