@@ -702,3 +702,81 @@ body.hidden {
 .read-button.speaking {
   background-color: #f44336;
 }
+/* Estilos para o botão de ler todos */
+.read-all-container {
+  margin: 15px 0;
+  text-align: right;
+}
+
+.read-all-button, .stop-all-button {
+  padding: 8px 16px;
+  margin-left: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.read-all-button {
+  background-color: #4CAF50;
+  color: white;
+  border: 1px solid #45a049;
+}
+
+.read-all-button:hover {
+  background-color: #45a049;
+}
+
+.stop-all-button {
+  background-color: #f44336;
+  color: white;
+  border: 1px solid #d32f2f;
+}
+
+.stop-all-button:hover {
+  background-color: #d32f2f;
+}
+
+/* Estilos para destacar o texto que está sendo lido */
+.content.reading-active {
+  background-color: rgba(255, 255, 0, 0.15);
+  border-left: 3px solid #ffd700;
+  padding-left: 15px;
+  transition: background-color 0.3s ease;
+}
+
+.result-item.current-reading {
+  border: 2px solid #4285f4;
+  box-shadow: 0 0 10px rgba(66, 133, 244, 0.3);
+  transition: all 0.3s ease;
+}
+
+/* Estilos para o botão de leitura quando ativo */
+.read-button.speaking {
+  background-color: #f44336;
+  color: white;
+}
+
+/* Garantir que resultados colapsados sejam expandidos durante a leitura */
+.content.reading-active.collapsed {
+  max-height: none !important;
+}
+
+/* Estilo responsivo para dispositivos móveis */
+@media screen and (max-width: 768px) {
+  .read-all-container {
+      text-align: center;
+  }
+  
+  .read-all-button, .stop-all-button {
+      width: 90%;
+      margin: 5px auto;
+      display: block;
+  }
+  
+  .content.reading-active {
+      border-left: none;
+      border-top: 3px solid #ffd700;
+      padding-top: 10px;
+  }
+}
