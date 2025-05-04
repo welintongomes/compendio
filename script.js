@@ -1191,15 +1191,6 @@ function displayResults(searchTime) {
         const buttonContainer = document.createElement('div');
         buttonContainer.className = 'button-container';
 
-        // Adiciona botão de adicionar parágrafo
-        const addParagraphButton = document.createElement('button');
-        addParagraphButton.className = 'add-paragraph-button';
-        addParagraphButton.textContent = 'Novo';
-        addParagraphButton.onclick = function () {
-            addNewParagraph(result.file);
-        };
-        buttonContainer.appendChild(addParagraphButton);
-
         // Adiciona botão de editar
         const editButton = document.createElement('button');
         editButton.className = 'edit-button';
@@ -1208,29 +1199,7 @@ function displayResults(searchTime) {
             editResultContent(`result-${index}`, result);
         };
         buttonContainer.appendChild(editButton);
-
-        // Adiciona botão de exportar arquivo
-        const exportButton = document.createElement('button');
-        exportButton.className = 'export-button';
-        exportButton.textContent = 'Exportar';
-        exportButton.onclick = function () {
-            exportFile(result.file);
-        };
-        buttonContainer.appendChild(exportButton);
-
-        // Adiciona botão de excluir parágrafo
-        const deleteButton = document.createElement('button');
-        deleteButton.className = 'delete-button';
-        deleteButton.textContent = 'Excluir';
-        deleteButton.onclick = function (e) {
-            // Prevenir propagação do evento
-            e.preventDefault();
-            e.stopPropagation();
-
-            deleteParagraph(`result-${index}`, result);
-        };
-        buttonContainer.appendChild(deleteButton);
-
+        
         // Adiciona botão de leitura em voz alta
         const readButton = document.createElement('button');
         readButton.className = 'read-button';
@@ -1288,6 +1257,38 @@ function displayResults(searchTime) {
         };
         
         buttonContainer.appendChild(readButton);
+        // Adiciona botão de adicionar parágrafo
+        const addParagraphButton = document.createElement('button');
+        addParagraphButton.className = 'add-paragraph-button';
+        addParagraphButton.textContent = 'Novo';
+        addParagraphButton.onclick = function () {
+            addNewParagraph(result.file);
+        };
+        buttonContainer.appendChild(addParagraphButton);
+
+        // Adiciona botão de exportar arquivo
+        const exportButton = document.createElement('button');
+        exportButton.className = 'export-button';
+        exportButton.textContent = 'Exportar';
+        exportButton.onclick = function () {
+            exportFile(result.file);
+        };
+        buttonContainer.appendChild(exportButton);
+
+        // Adiciona botão de excluir parágrafo
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'delete-button';
+        deleteButton.textContent = 'Excluir';
+        deleteButton.onclick = function (e) {
+            // Prevenir propagação do evento
+            e.preventDefault();
+            e.stopPropagation();
+
+            deleteParagraph(`result-${index}`, result);
+        };
+        buttonContainer.appendChild(deleteButton);
+
+        
 
         // Adiciona botão de copiar
         const copyButton = document.createElement('button');
