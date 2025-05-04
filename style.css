@@ -520,7 +520,15 @@ body.hidden {
   background-color: #0d6efd;
   color: white;
 }
-
+.button-container button {
+    padding: 0.4rem 0.4rem;
+    font-size: 0.8rem;
+    border-radius: 0.3rem;
+    border: none;
+    cursor: pointer;
+    background-color: #0d6efd;
+    color: white;
+}
 .button-container button:hover {
   background-color: #0b5ed7;
 }
