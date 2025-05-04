@@ -803,10 +803,10 @@ if (!appState.defaultSample) {
         date: new Date().toISOString(),
         id: "default-sample",
         paragraphs: [
-            "Este é um texto de exemplo para testar a funcionalidade de busca. Você pode buscar por palavras como 'exemplo', 'teste', 'funcionalidade' ou 'busca'.",
-            "A ferramenta de busca possui diversas opções como busca sensível a maiúsculas e minúsculas, busca de palavras inteiras, e até mesmo expressões regulares.",
-            "Experimente usar diferentes termos de busca para ver como os resultados são destacados. Você também pode testar recursos como a leitura em voz alta e edição de texto.",
-            "Quando você carregar seus próprios arquivos, este texto de exemplo não será mais exibido nos resultados de busca.",
+            "ajuda: Este é um texto de exemplo para testar a funcionalidade de busca. Você pode buscar por palavras como 'exemplo', 'teste', 'funcionalidade' ou 'busca'.",
+            "ajuda: A ferramenta de busca possui diversas opções como busca sensível a maiúsculas e minúsculas, busca de palavras inteiras, e até mesmo expressões regulares.",
+            "ajuda: Experimente usar diferentes termos de busca para ver como os resultados são destacados. Você também pode testar recursos como a leitura em voz alta e edição de texto.",
+            "ajuda: Quando você carregar seus próprios arquivos, este texto de exemplo não será mais exibido nos resultados de busca.",
             "Boas buscas!"
         ]
     };
