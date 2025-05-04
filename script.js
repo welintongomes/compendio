@@ -3,6 +3,216 @@ const DB_NAME = 'fileSearchDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'files';
 let db;
+// Variáveis globais para controle de leitura
+let currentSpeechUtterance = null;
+let isReadingAll = false;
+let currentReadingIndex = -1;
+let readingQueue = [];
+
+// Adicionar botão "Ler Todos" no topo dos resultados
+function addReadAllButton() {
+    // Se já existir um botão, remova-o primeiro
+    const existingBtn = document.querySelector('#read-all-button');
+    if (existingBtn) {
+        existingBtn.remove();
+    }
+    
+    // Só adiciona o botão se houver resultados
+    if (appState.searchResults.length === 0) {
+        return;
+    }
+    
+    const readAllButton = document.createElement('button');
+    readAllButton.id = 'read-all-button';
+    readAllButton.className = 'read-all-button';
+    readAllButton.textContent = 'Ler Todos os Resultados';
+    readAllButton.onclick = readAllResults;
+    
+    // Adiciona botão de parar leitura (inicialmente oculto)
+    const stopAllButton = document.createElement('button');
+    stopAllButton.id = 'stop-all-button';
+    stopAllButton.className = 'stop-all-button';
+    stopAllButton.textContent = 'Parar Leitura';
+    stopAllButton.style.display = 'none';
+    stopAllButton.onclick = stopAllReading;
+    
+    // Criar container para os botões
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'read-all-container';
+    buttonContainer.appendChild(readAllButton);
+    buttonContainer.appendChild(stopAllButton);
+    
+    // Adiciona antes dos resultados
+    searchResultsEl.insertAdjacentElement('beforebegin', buttonContainer);
+}
+
+// Função para ler todos os resultados em sequência
+function readAllResults() {
+    // Verificar se a API é suportada
+    if (!window.speechSynthesis) {
+        alert('Desculpe, seu navegador não suporta leitura em voz alta.');
+        return;
+    }
+    
+    // Parar qualquer leitura anterior
+    stopAllReading();
+    
+    // Preparar para leitura em sequência
+    isReadingAll = true;
+    currentReadingIndex = -1;
+    
+    // Preparar fila de leitura com todos os resultados
+    readingQueue = appState.searchResults.map(result => result.paragraph);
+    
+    // Atualizar interface
+    document.getElementById('read-all-button').style.display = 'none';
+    document.getElementById('stop-all-button').style.display = 'inline-block';
+    
+    // Iniciar leitura do primeiro item
+    readNextInQueue();
+}
+
+// Função para ler o próximo item na fila
+function readNextInQueue() {
+    // Se estiver no modo de leitura em sequência e ainda houver itens na fila
+    if (isReadingAll && currentReadingIndex < readingQueue.length - 1) {
+        currentReadingIndex++;
+        
+        // Remove destaque do item anterior (se houver)
+        removeAllReadingHighlights();
+        
+        // Destaca o item atual que está sendo lido
+        highlightCurrentReading(currentReadingIndex);
+        
+        // Configura e inicia a leitura
+        const utterance = new SpeechSynthesisUtterance(readingQueue[currentReadingIndex]);
+        utterance.lang = 'pt-BR';
+        
+        // Configura callback para quando terminar este item
+        utterance.onend = function() {
+            // Pequeno delay antes de ler o próximo item
+            setTimeout(() => {
+                readNextInQueue();
+            }, 500);
+        };
+        
+        // Salva a referência atual
+        currentSpeechUtterance = utterance;
+        
+        // Inicia a leitura
+        window.speechSynthesis.speak(utterance);
+        
+        // Atualiza o botão de leitura individual do resultado atual
+        updateReadingButtonState(currentReadingIndex, true);
+        
+        // Scroll para o item atual
+        scrollToCurrentReading(currentReadingIndex);
+    } else {
+        // Finaliza a leitura em sequência
+        stopAllReading();
+    }
+}
+
+// Função para parar toda a leitura em sequência
+function stopAllReading() {
+    // Cancelar síntese de voz
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+    
+    // Resetar estado
+    isReadingAll = false;
+    currentReadingIndex = -1;
+    currentSpeechUtterance = null;
+    
+    // Remover todos os destaques
+    removeAllReadingHighlights();
+    
+    // Resetar todos os botões de leitura individuais
+    const readButtons = document.querySelectorAll('.read-button');
+    readButtons.forEach(button => {
+        button.textContent = 'Ler';
+        button.dataset.speaking = 'false';
+        button.classList.remove('speaking');
+    });
+    
+    // Mostrar botão de ler todos / esconder botão de parar
+    const readAllButton = document.getElementById('read-all-button');
+    const stopAllButton = document.getElementById('stop-all-button');
+    
+    if (readAllButton) readAllButton.style.display = 'inline-block';
+    if (stopAllButton) stopAllButton.style.display = 'none';
+}
+
+// Função para destacar o texto que está sendo lido atualmente
+function highlightCurrentReading(index) {
+    const resultItem = document.getElementById(`result-${index}`);
+    if (resultItem) {
+        const contentEl = resultItem.querySelector('.content');
+        if (contentEl) {
+            // Adiciona classe para destacar
+            contentEl.classList.add('reading-active');
+            
+            // Se o conteúdo estiver colapsado, expande-o
+            if (contentEl.classList.contains('collapsed')) {
+                // Simula clique no botão expandir
+                const expandButton = resultItem.querySelector('.expand-button');
+                if (expandButton && expandButton.textContent === 'Expandir') {
+                    expandButton.click();
+                }
+            }
+        }
+        
+        // Marca o item todo como ativo
+        resultItem.classList.add('current-reading');
+    }
+}
+
+// Função para remover todos os destaques de leitura
+function removeAllReadingHighlights() {
+    // Remove classe de destaque de todos os conteúdos
+    const activeContents = document.querySelectorAll('.content.reading-active');
+    activeContents.forEach(el => el.classList.remove('reading-active'));
+    
+    // Remove classe de destaque de todos os itens
+    const activeItems = document.querySelectorAll('.result-item.current-reading');
+    activeItems.forEach(el => el.classList.remove('current-reading'));
+}
+
+// Função para fazer scroll até o item sendo lido
+function scrollToCurrentReading(index) {
+    const resultItem = document.getElementById(`result-${index}`);
+    if (resultItem) {
+        // Calcula posição para centralizar o elemento na tela
+        const rect = resultItem.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        // Scroll suave para o elemento
+        window.scrollTo({
+            top: scrollTop + rect.top - (window.innerHeight / 3),
+            behavior: 'smooth'
+        });
+    }
+}
+
+// Função para atualizar o estado do botão de leitura individual
+function updateReadingButtonState(index, isSpeaking) {
+    const resultItem = document.getElementById(`result-${index}`);
+    if (resultItem) {
+        const readButton = resultItem.querySelector('.read-button');
+        if (readButton) {
+            if (isSpeaking) {
+                readButton.textContent = 'Parar';
+                readButton.dataset.speaking = 'true';
+                readButton.classList.add('speaking');
+            } else {
+                readButton.textContent = 'Ler';
+                readButton.dataset.speaking = 'false';
+                readButton.classList.remove('speaking');
+            }
+        }
+    }
+}
 
 // Inicializa o banco de dados
 function initDatabase() {
@@ -1078,6 +1288,7 @@ function escapeRegExp(string) {
 }
 
 // Adicionar novo recurso para expandir/colapsar resultados
+// Modificar a função displayResults para incluir o novo comportamento
 function displayResults(searchTime) {
     searchResultsEl.innerHTML = '';
 
@@ -1092,17 +1303,10 @@ function displayResults(searchTime) {
     statsEl.innerHTML = `Busca concluída em ${searchTime} segundos. ${appState.searchResults.length} resultados encontrados.`;
     updateStats(searchTime);
 
-    // Variável global para controlar leitura em voz alta
+    // Verificar suporte à síntese de voz
     if (!window.speechSynthesis) {
         console.warn('Síntese de voz não suportada neste navegador');
     }
-    
-    // Função para parar qualquer leitura em andamento
-    const stopSpeaking = () => {
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-        }
-    };
 
     // Cria elementos para cada resultado
     appState.searchResults.forEach((result, index) => {
@@ -1200,7 +1404,7 @@ function displayResults(searchTime) {
         };
         buttonContainer.appendChild(editButton);
         
-        // Adiciona botão de leitura em voz alta
+        // Adiciona botão de leitura em voz alta (COMPLETAMENTE REFORMULADO)
         const readButton = document.createElement('button');
         readButton.className = 'read-button';
         readButton.textContent = 'Ler';
@@ -1216,47 +1420,90 @@ function displayResults(searchTime) {
             // Obtém o texto puro (sem HTML)
             const textToRead = result.paragraph;
             
-            // Parar qualquer leitura em andamento
-            stopSpeaking();
+            // Se estamos em modo de leitura em sequência, pare tudo
+            if (isReadingAll) {
+                stopAllReading();
+                return;
+            }
             
-            // Se não estiver falando, iniciar leitura
-            if (readButton.dataset.speaking === 'false') {
-                // Criar uma nova instância de SpeechSynthesisUtterance
-                const utterance = new SpeechSynthesisUtterance(textToRead);
-                
-                // Definir idioma para português (Brasil)
-                utterance.lang = 'pt-BR';
-                
-                // Evento quando a leitura terminar
-                utterance.onend = function() {
-                    readButton.textContent = 'Ler';
-                    readButton.dataset.speaking = 'false';
-                    readButton.classList.remove('speaking');
-                };
-                
-                // Evento em caso de erro
-                utterance.onerror = function() {
-                    readButton.textContent = 'Ler';
-                    readButton.dataset.speaking = 'false';
-                    readButton.classList.remove('speaking');
-                };
-                
-                // Iniciar leitura
-                window.speechSynthesis.speak(utterance);
-                
-                // Atualizar estado do botão
-                readButton.textContent = 'Parar';
-                readButton.dataset.speaking = 'true';
-                readButton.classList.add('speaking');
-            } else {
+            // Se já estiver lendo este item específico (botão está como "Parar")
+            if (readButton.dataset.speaking === 'true') {
                 // Parar leitura
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+                }
+                
+                // Remover destaque
+                removeAllReadingHighlights();
+                
+                // Resetar estado do botão
                 readButton.textContent = 'Ler';
                 readButton.dataset.speaking = 'false';
                 readButton.classList.remove('speaking');
+                return;
             }
+            
+            // Se estávamos lendo outro item, pare primeiro
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+                
+                // Resetar todos os outros botões
+                document.querySelectorAll('.read-button').forEach(btn => {
+                    if (btn !== readButton) {
+                        btn.textContent = 'Ler';
+                        btn.dataset.speaking = 'false';
+                        btn.classList.remove('speaking');
+                    }
+                });
+                
+                removeAllReadingHighlights();
+            }
+            
+            // Destacar este resultado
+            highlightCurrentReading(index);
+            
+            // Criar uma nova instância de SpeechSynthesisUtterance
+            const utterance = new SpeechSynthesisUtterance(textToRead);
+            
+            // Definir idioma para português (Brasil)
+            utterance.lang = 'pt-BR';
+            
+            // Salvar referência
+            currentSpeechUtterance = utterance;
+            
+            // Evento quando a leitura terminar
+            utterance.onend = function() {
+                readButton.textContent = 'Ler';
+                readButton.dataset.speaking = 'false';
+                readButton.classList.remove('speaking');
+                
+                // Remover destaque
+                if (!isReadingAll) {
+                    removeAllReadingHighlights();
+                }
+            };
+            
+            // Evento em caso de erro
+            utterance.onerror = function() {
+                readButton.textContent = 'Ler';
+                readButton.dataset.speaking = 'false';
+                readButton.classList.remove('speaking');
+                
+                // Remover destaque
+                removeAllReadingHighlights();
+            };
+            
+            // Iniciar leitura
+            window.speechSynthesis.speak(utterance);
+            
+            // Atualizar estado do botão
+            readButton.textContent = 'Parar';
+            readButton.dataset.speaking = 'true';
+            readButton.classList.add('speaking');
         };
         
         buttonContainer.appendChild(readButton);
+        
         // Adiciona botão de adicionar parágrafo
         const addParagraphButton = document.createElement('button');
         addParagraphButton.className = 'add-paragraph-button';
@@ -1288,8 +1535,6 @@ function displayResults(searchTime) {
         };
         buttonContainer.appendChild(deleteButton);
 
-        
-
         // Adiciona botão de copiar
         const copyButton = document.createElement('button');
         copyButton.className = 'copy-button';
@@ -1317,14 +1562,18 @@ function displayResults(searchTime) {
         searchResultsEl.appendChild(resultItem);
     });
 
+    // Adicionar botão "Ler Todos" no topo dos resultados
+    addReadAllButton();
+
     // Parar qualquer leitura em andamento se o usuário iniciar uma nova busca
     const searchForm = document.querySelector('#search-form');
     if (searchForm) {
-        searchForm.addEventListener('submit', stopSpeaking);
+        searchForm.addEventListener('submit', stopAllReading);
     }
 
     filterResults();
 }
+
 
 
 // Função para mostrar estatísticas avançadas
